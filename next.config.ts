@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// GitHub Pages serves the site from /<repo>; the workflow sets GITHUB_PAGES=true.
+// Served from /portfolio/old by the master Pages workflow, which sets GITHUB_PAGES=true.
 const isPages = process.env.GITHUB_PAGES === "true";
 
 const nextConfig: NextConfig = {
@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   ...(isPages
     ? {
         output: "export" as const,
-        basePath: "/keen-newton",
+        basePath: "/portfolio/old",
         images: { unoptimized: true },
         trailingSlash: true,
       }

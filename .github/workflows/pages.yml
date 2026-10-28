@@ -27,6 +27,15 @@ jobs:
       - run: npm run build
         env:
           GITHUB_PAGES: "true"
+      # The previous design lives on the old-design branch and is served from /portfolio/old.
+      - uses: actions/checkout@v4
+        with:
+          ref: old-design
+          path: old-design
+      - run: npm ci && npm run build && cp -r out ../out/old
+        working-directory: old-design
+        env:
+          GITHUB_PAGES: "true"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

@@ -101,6 +101,16 @@ export const BackgroundMusic: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
+    // Browsers block unmuted autoplay until a user gesture; retry on each one
+    // until playback actually starts (the first may land before the player is ready).
+    const onGesture = () => {
+      if (wantPlayRef.current) start();
+    };
+    const events = ["pointerdown", "keydown", "touchend"] as const;
+    const remove = () =>
+      events.forEach((ev) => window.removeEventListener(ev, onGesture));
+    events.forEach((ev) => window.addEventListener(ev, onGesture));
+
     loadYouTubeApi().then((YT) => {
       if (cancelled || !mountRef.current) return;
       playerRef.current = new YT.Player(mountRef.current, {
@@ -121,6 +131,7 @@ export const BackgroundMusic: React.FC = () => {
           },
           onStateChange: (e) => {
             setPlaying(e.data === YT.PlayerState.PLAYING);
+            if (e.data === YT.PlayerState.PLAYING) remove();
             if (e.data === YT.PlayerState.ENDED) {
               playerRef.current?.seekTo(0, true);
               playerRef.current?.playVideo();
@@ -129,16 +140,6 @@ export const BackgroundMusic: React.FC = () => {
         },
       });
     });
-
-    // Browsers block unmuted autoplay until a user gesture; retry on the first one.
-    const onGesture = () => {
-      if (wantPlayRef.current) start();
-      remove();
-    };
-    const events = ["pointerdown", "keydown", "touchstart"] as const;
-    const remove = () =>
-      events.forEach((ev) => window.removeEventListener(ev, onGesture));
-    events.forEach((ev) => window.addEventListener(ev, onGesture, { once: true }));
 
     return () => {
       cancelled = true;

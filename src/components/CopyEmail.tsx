@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function CopyEmail({ email }: { email: string }) {
+export default function CopyEmail({ email, className }: { email: string; className?: string }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -16,8 +16,8 @@ export default function CopyEmail({ email }: { email: string }) {
   };
 
   return (
-    <button type="button" className="btn btn-ghost" onClick={copy} aria-live="polite">
-      {copied ? "Copied" : "Copy email"}
+    <button type="button" className={className} onClick={copy} title="Copy email address">
+      <span aria-live="polite">{copied ? "Copied" : email}</span>
     </button>
   );
 }

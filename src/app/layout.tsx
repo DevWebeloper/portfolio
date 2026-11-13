@@ -1,9 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-geist",
+// Display: a tight, heavy grotesque for the name and card labels.
+const display = Schibsted_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+// Text: small labels and the panel copy.
+const text = Geist({
+  variable: "--font-text",
   subsets: ["latin"],
 });
 
@@ -25,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0b",
+  themeColor: "#0b0b0c",
 };
 
 export default function RootLayout({
@@ -34,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={`${display.variable} ${text.variable}`}>
       <body>{children}</body>
     </html>
   );

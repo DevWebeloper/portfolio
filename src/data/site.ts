@@ -2,14 +2,13 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const PERSON = {
   name: "Ghaith Alkawadri",
-  role: "Web developer · Founder of OmiTech",
-  headline: "Web developer and founder of OmiTech: tech & AI solutions.",
+  role: "Web developer",
+  headline: "Web developer building for the web and the Linux desktop.",
   base: "Remote, based in Egypt",
   email: "gheith.sy@gmail.com",
   github: "https://github.com/DevWebeloper",
   githubLabel: "github.com/DevWebeloper",
   cv: `${BASE}/Ghaith-Alkawadri-CV.pdf`,
-  company: { name: "OmiTech", tagline: "Tech & AI solutions", role: "Founder" },
   languages: "Arabic (native) · English (fluent)",
 };
 
@@ -17,7 +16,7 @@ export const PERSON = {
 export const ABOUT = {
   greeting: "Hi, I'm Ghaith.",
   lead:
-    "I'm a web developer with 8+ years of remote work for clients in the US, Switzerland and France, and the founder of OmiTech, where I build tech and AI solutions.",
+    "I'm a web developer with 8+ years of remote work for clients in the US, Switzerland and France.",
   body:
     "On the web I build Angular and React front-ends and WordPress sites with PHP, JavaScript and CSS. I also write open-source Linux desktop software in Python and GTK4.",
   services: [
@@ -30,8 +29,8 @@ export const ABOUT = {
       text: "Custom themes and features in large existing codebases, built to stay up under traffic spikes.",
     },
     {
-      title: "Tech & AI solutions",
-      text: "Through OmiTech, the company I founded.",
+      title: "Linux & open source",
+      text: "GTK4 and Python desktop apps; my GNOME theme Aura Glass has 120+ stars on GitHub.",
     },
   ],
   experience: [
@@ -96,7 +95,7 @@ export const CARDS: Card[] = [
     kind: "about",
     name: "About me",
     short: "About me",
-    // The cover already says "Web developer · Founder of OmiTech"; the caption says what's inside.
+    // The cover already says "Web developer · 8+ years, remote"; the caption says what's inside.
     role: "Who I am and what I do",
     summary: ABOUT.lead,
     stack: [],

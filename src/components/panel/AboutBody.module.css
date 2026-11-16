@@ -58,29 +58,6 @@
   max-width: 62ch;
 }
 
-.company {
-  display: inline-flex;
-  align-items: center;
-  /* Space between status dot and company text */
-  gap: 10px;
-  border: 1px solid var(--line);
-  /* Full pill rounding */
-  border-radius: 999px;
-  /* Compact pill padding */
-  padding: 6px 14px;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.company::before {
-  content: "";
-  /* Accent indicator dot size */
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
-  flex-shrink: 0;
-}
 
 .ctas {
   display: flex;

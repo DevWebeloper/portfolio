@@ -11,10 +11,6 @@ export default function AboutBody() {
         <p className={styles.lead}>{ABOUT.lead}</p>
         <p className={styles.body}>{ABOUT.body}</p>
 
-        <p className={styles.company}>
-          {`${PERSON.company.role}, ${PERSON.company.name} · ${PERSON.company.tagline}`}
-        </p>
-
         <div className={styles.ctas}>
           <CopyEmail email={PERSON.email} className={styles.primaryBtn} />
           <a href={PERSON.cv} download className={styles.secondaryBtn}>

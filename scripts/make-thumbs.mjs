@@ -34,13 +34,13 @@ const covers = [
     accent: "#a8d5a2",
     body: `
     <div class="hello">Hi, I'm<br>Ghaith.</div>
-    <div class="sub">Web developer &nbsp;·&nbsp; Founder of <em>OmiTech</em></div>
+    <div class="sub">Web developer &nbsp;·&nbsp; <em>8+ years</em>, remote</div>
     <div class="tags low"><span>Angular</span><span>React / Next.js</span><span>TypeScript</span><span>WordPress</span><span>PHP</span></div>
     <div class="code"><div class="bar"><i></i><i></i><i></i><b>ghaith.ts</b></div><pre>
 <k>const</k> <v>ghaith</v> = {
   role: <em class="s">"Web developer"</em>,
-  founder: <em class="s">"OmiTech"</em>,
-  focus: [<em class="s">"Tech"</em>, <em class="s">"AI solutions"</em>],
+  stack: [<em class="s">"Angular"</em>, <em class="s">"React"</em>],
+  cms: <em class="s">"WordPress"</em>,
   experience: <n>8</n>, <c>// years, remote</c>
   clients: [<em class="s">"US"</em>, <em class="s">"CH"</em>, <em class="s">"FR"</em>],
   available: <k>true</k>,

@@ -96,9 +96,20 @@
   height: 100%;
   /* Concentric inner radius: 34px outer radius minus 10px bezel padding. */
   border-radius: 24px;
-  container-type: size;
-  overflow: hidden;
+  overflow-y: auto;
+  /* Wheel and touch scroll stop at the phone's ends instead of moving the panel. */
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   background: #fff;
+}
+
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
 }
 
 .capture {
@@ -106,19 +117,6 @@
   width: 100%;
   height: auto;
   user-select: none;
-  /* 38s slowly pans tall mobile captures; 1.2s delay lets visitors see the hero first. */
-  animation: scrollShot 38s ease-in-out 1.2s infinite alternate;
-}
-
-.phone:hover .capture {
-  animation-play-state: paused;
-}
-
-@keyframes scrollShot {
-  to {
-    /* % is the image's own height, cqh is the screen's, so it ends exactly at the bottom. */
-    transform: translateY(calc(-100% + 100cqh));
-  }
 }
 
 .island {
@@ -160,12 +158,6 @@
   .island {
     top: 12px;
     height: 12px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .capture {
-    animation: none;
   }
 }
 

@@ -1,41 +1,65 @@
 // Card shaders for the curved carousel.
 //
-// Vertex: lays a flat strip of cards onto the inside of a cylinder (the wall
-// curves toward the viewer at the edges), tilts it, and blends the open card
-// toward a flat on-screen rect.
+// Vertex: lays each card onto the wall ribbon (a precomputed table of centre
+// line, up and normal vectors, see ribbon.ts), dents and rolls the hovered
+// card, and blends the open card toward a flat on-screen rect.
 // Fragment: rounded-corner mask, top-aligned cover crop, and the pointer
 // liquid (screen-space fluid velocity + ink bend and light the image).
 // Post: horizontal motion blur over the whole frame, length from scroll speed.
 
 export const vertexShader = /* glsl */ `
 uniform vec2 uSize;      // card size, world units
-uniform float uOffset;   // card centre along the flat strip
-uniform float uRadius;   // cylinder radius
-uniform mat3 uTilt;
+uniform float uOffset;   // card centre along the strip, world units
+uniform sampler2D uRibbon; // ribbon table: rows centre, up, normal (view-height units)
+uniform vec3 uRibMap;    // first u, samples per unit, last index
+uniform float uUnit;     // world units per ribbon unit
+uniform float uShift;    // ribbon position of strip offset 0
+uniform vec4 uHover;     // hover amount, pointer x, y on the card (-0.5..0.5), quick-move turn
+uniform vec3 uDent;      // dent depth, width along, width across (ribbon units)
+uniform float uRoll;     // hover roll about the view axis, rad
+uniform vec2 uWigAt;     // where the last quick move crossed the card (-0.5..0.5)
+uniform float uWigReach; // ribbon units
 uniform float uOpen;     // 0 on the wall, 1 at the sheet rect
 uniform vec4 uTarget;    // sheet rect: centre xy, size zw
-uniform vec4 uWave;      // idle ribbon wave: amp, freq, phase (world units) + second amp
-uniform vec2 uWave2;     // second wave: freq, phase
 
 varying vec2 vUv;
 varying vec2 vSize;
 varying float vEdge;
 
+vec3 rib(float u, int row) {
+  float f = clamp((u - uRibMap.x) * uRibMap.y, 0.0, uRibMap.z);
+  float i = floor(f);
+  vec3 a = texelFetch(uRibbon, ivec2(int(i), row), 0).xyz;
+  vec3 b = texelFetch(uRibbon, ivec2(int(min(i + 1.0, uRibMap.z)), row), 0).xyz;
+  return mix(a, b, f - i);
+}
+
 void main() {
   vec2 p = position.xy;                       // -0.5 .. 0.5
-  vec2 local = p * uSize;
-  float x = uOffset + local.x;
-  float th = x / uRadius;
-  // The wall is a ribbon with a slow wave along it, fixed to the view so cards
-  // sail through it. engine.ts mirrors this for picking.
-  float wave = uWave.x * sin(uWave.y * x + uWave.z) + uWave.w * sin(uWave2.x * x + uWave2.y);
-  vec3 bent = uTilt * vec3(uRadius * sin(th), local.y + wave, uRadius * (1.0 - cos(th)));
+  vec2 local = p * uSize / uUnit;             // ribbon units
+  float u = (uOffset / uUnit) + uShift + local.x;
+  vec3 up = rib(u, 1);
+  vec3 nrm = rib(u, 2);
+  vec3 bent = rib(u, 0) + up * local.y;
+  // Hover: the card gives under the pointer and turns a little
+  // counter-clockwise about the view axis (so a card left of centre also
+  // sinks, one right of centre rises). engine.ts mirrors this for picking.
+  if (uHover.x != 0.0 || uHover.w != 0.0) {
+    vec2 d = (p - uHover.yz) * uSize / uUnit / uDent.yz;
+    bent += nrm * (uDent.x * uHover.x * exp(-0.5 * dot(d, d)));
+    vec2 q = (p - uWigAt) * uSize / uUnit / uWigReach;
+    float a = uRoll * uHover.x + uHover.w * exp(-0.5 * dot(q, q));
+    bent.xy = mat2(cos(a), sin(a), -sin(a), cos(a)) * bent.xy;
+  }
+  bent *= uUnit;
   vec3 sheet = vec3(uTarget.xy + p * uTarget.zw, 0.0);
   vec3 pos = mix(bent, sheet, uOpen);
 
   vUv = uv;
   vSize = mix(uSize, uTarget.zw, uOpen);
-  vEdge = clamp((abs(th) - 0.35) / 0.8, 0.0, 1.0) * (1.0 - uOpen);
+  // Sheen where the ribbon turns away from the viewer.
+  float facing = abs(dot(normalize(nrm), normalize(cameraPosition - bent)));
+  vEdge = clamp((0.9 - facing) / 0.6, 0.0, 1.0) * (1.0 - uOpen);
   gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
 }
 `;
@@ -98,7 +122,8 @@ void main() {
 
   vec3 col = texture2D(uMap, uv).rgb;
   col += light;
-  col *= 1.0 - vEdge * 0.25;
+  // Turned-away parts catch a soft grey sheen, as on the reference.
+  col = mix(col, vec3(0.62, 0.62, 0.64), vEdge * 0.35);
   gl_FragColor = vec4(col, mask);
 }
 `;

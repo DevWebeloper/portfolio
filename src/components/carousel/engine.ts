@@ -5,14 +5,16 @@ import {
   Camera,
   CanvasTexture,
   Color,
-  Euler,
+  DataTexture,
+  DoubleSide,
+  FloatType,
   LinearFilter,
   LinearSRGBColorSpace,
-  Matrix3,
-  Matrix4,
   Mesh,
+  NearestFilter,
   PerspectiveCamera,
   PlaneGeometry,
+  RGBAFormat,
   Scene,
   ShaderMaterial,
   Vector2,
@@ -24,6 +26,18 @@ import {
 import type { Card } from "@/data/site";
 import { sheetRect } from "@/components/sheet";
 import { createFluid } from "./fluid";
+import {
+  RIB_CARD_H,
+  RIB_CARD_W,
+  RIB_DU,
+  RIB_GAP,
+  RIB_N,
+  RIB_REST,
+  RIB_ROWS,
+  RIB_U_MIN,
+  buildRibbon,
+  sampleRibbon,
+} from "./ribbon";
 import { fragmentShader, postFragmentShader, postVertexShader, vertexShader } from "./shaders";
 
 export interface Engine {
@@ -63,17 +77,38 @@ const BLUR_MAX = 160; // px
 const OPEN_MS = 500;
 const CLOSE_MS = 600;
 const FLUID_LIFE = 4500; // ms after the last stir before the liquid stops
-// Idle ribbon wave, in units of the view height. The main wave rises to the
-// right through the centre (as the reference wall sits); it sways and breathes
-// slowly while a faint shorter wave drifts along it.
-const WAVE_AMP = 0.025;
-const WAVE_LEN = 1.29;
-const WAVE_SWAY = 0.08; // rad of phase sway
-const WAVE2_AMP = 0.0025;
-const WAVE2_LEN = 0.75;
-const IDLE_FRAME_MS = 1000 / 30; // frame budget while only the wave moves
+// Hover, measured on the reference: about 0.8 s after the pointer comes onto a
+// card, the card gives a little under it (a soft dent) and turns slightly
+// counter-clockwise about the view axis, overshooting once before it settles;
+// when the pointer leaves it eases back over ~1 s. Lengths in view heights.
+const HOVER_DELAY = 0.8; // s
+const DENT = [-0.043, 0.24, 0.25] as const; // depth, width along, width across
+const HOVER_ROLL = 0.022; // rad
+const HOVER_W = 7; // rad/s, spring onto the hover pose
+const HOVER_Z = 0.35; // damping ratio (one visible overshoot)
+const HOVER_RELEASE = 1.1; // s, ease back once the pointer leaves
+const HOVER_FOLLOW = 1.5; // 1/s, dent following the pointer across a card
+// A quick move over a card kicks the part of the card it crossed, a fifth of a
+// second later, into a short counter-clockwise turn about the view axis
+// (whatever the direction: edges left of centre dip, right of centre lift),
+// gone ~0.6 s after.
+const WIG_DELAY = 0.2; // s
+const WIG_W = 12; // rad/s
+const WIG_Z = 0.7;
+const WIG_GAIN = 4.5; // rad/s^2 per (view heights per s) of pointer speed
+const WIG_MAX = 0.08; // rad
+const WIG_REACH = 0.35; // view heights: only the part of the card near the pass turns
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+/** Damped spring step (semi-implicit, sub-stepped so it holds at any frame rate). */
+const spring = (s: { x: number; v: number }, target: number, w: number, z: number, dt: number, force = 0) => {
+  const n = Math.max(1, Math.ceil(dt / (1 / 120)));
+  const h = dt / n;
+  for (let i = 0; i < n; i++) {
+    s.v += (w * w * (target - s.x) - 2 * z * w * s.v + force) * h;
+    s.x += s.v * h;
+  }
+};
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const damp = (k: number, dt: number) => 1 - Math.exp(-k * dt);
 /** Least-squares slope of [ms, px] samples, in px/s. */
@@ -148,10 +183,20 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
 
   /* ---------- Shared uniforms ---------- */
 
-  const tilt = new Matrix3().setFromMatrix4(new Matrix4().makeRotationFromEuler(new Euler(-0.03, 0.12, 0.03)));
+  const ribData = buildRibbon();
+  const ribTex = new DataTexture(ribData, RIB_N, RIB_ROWS, RGBAFormat, FloatType);
+  ribTex.minFilter = NearestFilter;
+  ribTex.magFilter = NearestFilter;
+  ribTex.generateMipmaps = false;
+  ribTex.needsUpdate = true;
   const shared = {
-    uRadius: { value: 10 },
-    uTilt: { value: tilt },
+    uRibbon: { value: ribTex },
+    uRibMap: { value: new Vector3(RIB_U_MIN, 1 / RIB_DU, RIB_N - 1) },
+    uUnit: { value: 1 },
+    uShift: { value: RIB_REST },
+    uDent: { value: new Vector3(DENT[0], DENT[1], DENT[2]) },
+    uRoll: { value: HOVER_ROLL },
+    uWigReach: { value: WIG_REACH },
     uTarget: { value: new Vector4() },
     uFluidVel: { value: fluid?.velocity() ?? null },
     uFluidInk: { value: fluid?.ink() ?? null },
@@ -162,8 +207,6 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     uCornerSheet: { value: 0.1 },
     uTexAspect: { value: TEX_W / TEX_H },
     uSize: { value: new Vector2(1, 1) },
-    uWave: { value: new Vector4() },
-    uWave2: { value: new Vector2() },
   };
 
   /* ---------- Cards ---------- */
@@ -187,17 +230,37 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
       transparent: true,
       depthTest: false,
       depthWrite: false,
+      side: DoubleSide,
       uniforms: {
         ...shared,
         uMap: { value: texture },
         uOffset: { value: 0 },
         uOpen: { value: 0 },
+        uHover: { value: new Vector4() },
+        uWigAt: { value: new Vector2() },
       },
     });
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false;
     scene.add(mesh);
-    return { card, i, tex, texture, material, mesh, image: null as HTMLImageElement | null };
+    return {
+      card,
+      i,
+      tex,
+      texture,
+      material,
+      mesh,
+      image: null as HTMLImageElement | null,
+      // Hover pose: spring toward 1 while hovered, pointer spot on the card,
+      // and the short roll kicked by quick moves.
+      hover: { x: 0, v: 0 },
+      spotX: 0,
+      spotY: 0,
+      wig: { x: 0, v: 0 },
+      wigX: 0, // where on the card the last quick move passed
+      wigY: 0,
+      depth: 0,
+    };
   });
 
   // Share of the texture height the wall shows (cards are wider than 16:10
@@ -252,12 +315,12 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
   let W = 1;
   let H = 1;
   let pxWorld = 0.01;
-  let worldW = 1;
   let worldH = 1;
   let cardW = 1;
   let cardH = 1;
   let step = 1;
   let L = 1;
+  let unit = 1; // world units per ribbon unit
 
   const layout = () => {
     W = Math.max(1, host.clientWidth);
@@ -266,16 +329,15 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
     worldH = 2 * DIST * Math.tan((FOV * Math.PI) / 360);
-    worldW = worldH * camera.aspect;
     pxWorld = worldH / H;
 
-    // Sized by height like the reference (wider screens show more of the
-    // neighbours), but never wider than the screen allows.
+    // The ribbon is sized by height like the reference (wider screens show
+    // more of it); on narrow screens it shrinks so the centred card still fits.
     const oldStep = step;
-    cardH = worldH * 0.62;
-    cardW = Math.min(cardH * 2.15, worldW * 0.84);
-    cardH = Math.min(cardH, cardW / 1.45);
-    step = cardW + worldH * 0.03;
+    unit = worldH * Math.min(1, camera.aspect / 1.55);
+    cardW = RIB_CARD_W * unit;
+    cardH = RIB_CARD_H * unit;
+    step = (RIB_CARD_W + RIB_GAP) * unit;
     L = step * n;
     // Keep the same card centred when the step size changes.
     scroll *= step / oldStep;
@@ -283,7 +345,7 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     prevScroll = scroll;
 
     shared.uSize.value.set(cardW, cardH);
-    shared.uRadius.value = worldW * 1.0;
+    shared.uUnit.value = unit;
     shared.uCornerCard.value = 18 * pxWorld;
     const r = sheetRect(W, H);
     shared.uCornerSheet.value = r.radius * pxWorld;
@@ -331,27 +393,21 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     dragLastX: 0,
     dragLastT: 0,
     dragVel: 0, // css px per s
+    mouse: false, // last move came from a mouse or pen, not a finger
   };
   const trail: Array<[number, number]> = []; // recent [time, x] while dragging
   let hoverIndex = -1;
   let lastStir = -1e9;
   let fluidLive = false;
 
-  let waveT = 0; // s, runs only while the wall is on show and motion is allowed
-  const wave = shared.uWave.value;
-  const wave2 = shared.uWave2.value;
-  /** Same ribbon offset as the vertex shader, for picking. */
-  const waveAt = (x: number) => wave.x * Math.sin(wave.y * x + wave.z) + wave.w * Math.sin(wave2.x * x + wave2.y);
-  const setWave = () => {
-    const tau = Math.PI * 2;
-    wave.set(
-      WAVE_AMP * worldH * (1 + 0.04 * Math.sin((tau * waveT) / 6.1)),
-      tau / (WAVE_LEN * worldH),
-      WAVE_SWAY * Math.sin((tau * waveT) / 7.3),
-      WAVE2_AMP * worldH,
-    );
-    wave2.set(tau / (WAVE2_LEN * worldH), (-tau * waveT) / 9.0);
-  };
+  // Hover follows the pointer late, like the reference: pointer samples go
+  // into a short history and the pose follows the one from HOVER_DELAY ago.
+  const canHover = typeof matchMedia !== "function" || matchMedia("(hover: hover)").matches;
+  const hoverMotion = () => canHover && !reduced;
+  type Sample = { t: number; i: number; x: number; y: number };
+  const history: Sample[] = [];
+  let hoverAt: Sample = { t: -1e9, i: -1, x: 0, y: 0 };
+  const kicks: Array<{ t: number; i: number; s: number; x: number; y: number }> = []; // pointer over a card, per frame
 
   const wrap = (x: number) => x - L * Math.round(x / L);
   const offsetOf = (i: number) => wrap(i * step - scroll);
@@ -361,56 +417,107 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     return base + L * Math.round((target - base) / L);
   };
 
-  /* ---------- Picking (mirrors the vertex shader) ---------- */
+  /* ---------- Geometry for picking (mirrors the vertex shader) ---------- */
 
+  type Item = (typeof items)[number];
   const v = new Vector3();
-  const outline: Array<[number, number]> = [];
-  for (let k = 0; k <= 16; k++) outline.push([-0.5 + k / 16, 0.5]);
-  for (let k = 1; k < 4; k++) outline.push([0.5, 0.5 - k / 4]);
-  for (let k = 16; k >= 0; k--) outline.push([-0.5 + k / 16, -0.5]);
-  for (let k = 3; k > 0; k--) outline.push([-0.5, 0.5 - k / 4]);
+  const cen = [0, 0, 0];
+  const upv = [0, 0, 0];
+  const nrm = [0, 0, 0];
+  let openAmount = 0;
 
-  const project = (i: number, px: number, py: number, open: number) => {
-    const R = shared.uRadius.value;
-    const lx = px * cardW;
-    const x = offsetOf(i) + lx;
-    const ly = py * cardH + waveAt(x);
-    const th = x / R;
-    v.set(R * Math.sin(th), ly, R * (1 - Math.cos(th))).applyMatrix3(tilt);
+  /** World position of a card point; px, py from -0.5 to 0.5 (py up). */
+  const cardPoint = (it: Item, px: number, py: number, open: number, out: Vector3) => {
+    const lx = (px * cardW) / unit;
+    const ly = (py * cardH) / unit;
+    const u = offsetOf(it.i) / unit + RIB_REST + lx;
+    sampleRibbon(ribData, u, 0, cen);
+    sampleRibbon(ribData, u, 1, upv);
+    let x = cen[0] + upv[0] * ly;
+    let y = cen[1] + upv[1] * ly;
+    let z = cen[2] + upv[2] * ly;
+    const hv = it.material.uniforms.uHover.value as Vector4;
+    if (hv.x !== 0 || hv.w !== 0) {
+      sampleRibbon(ribData, u, 2, nrm);
+      const dx = ((px - hv.y) * cardW) / unit / DENT[1];
+      const dy = ((py - hv.z) * cardH) / unit / DENT[2];
+      const g = DENT[0] * hv.x * Math.exp(-0.5 * (dx * dx + dy * dy));
+      x += nrm[0] * g;
+      y += nrm[1] * g;
+      z += nrm[2] * g;
+      const wa = it.material.uniforms.uWigAt.value as Vector2;
+      const wx = ((px - wa.x) * cardW) / unit / WIG_REACH;
+      const wy = ((py - wa.y) * cardH) / unit / WIG_REACH;
+      const a = HOVER_ROLL * hv.x + hv.w * Math.exp(-0.5 * (wx * wx + wy * wy));
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      [x, y] = [x * c - y * s, x * s + y * c];
+    }
+    x *= unit;
+    y *= unit;
+    z *= unit;
     const t = shared.uTarget.value;
-    const sx = t.x + px * t.z;
-    const sy = t.y + py * t.w;
-    v.set(v.x + (sx - v.x) * open, v.y + (sy - v.y) * open, v.z * (1 - open));
-    if (v.z > DIST - 0.2) return null;
-    v.project(camera);
-    return v;
+    return out.set(x + (t.x + px * t.z - x) * open, y + (t.y + py * t.w - y) * open, z * (1 - open));
   };
 
+  // Each card is tested as a grid of projected points, nearest card first, so
+  // a click lands on the card drawn on top at any pose.
+  const COLS = 24;
+  const gx = new Float32Array((COLS + 1) * 3);
+  const gy = new Float32Array((COLS + 1) * 3);
+  let byDepth: Item[] = [];
+
+  /** Card under a css-px point, with the point's spot on it (-0.5..0.5, y up). */
   const pick = (cx: number, cy: number) => {
     const nx = (cx / W) * 2 - 1;
     const ny = -((cy / H) * 2 - 1);
-    for (const item of items) {
-      const open = item.i === openIndex ? easeOut(openT) : 0;
-      const pts: Array<[number, number]> = [];
+    for (const it of byDepth) {
+      if (!it.mesh.visible) continue;
+      const open = it.i === openIndex ? openAmount : 0;
       let ok = true;
-      for (const [px, py] of outline) {
-        const p = project(item.i, px, py, open);
-        if (!p) {
-          ok = false;
-          break;
+      for (let r = 0; r < 3 && ok; r++) {
+        for (let k = 0; k <= COLS; k++) {
+          cardPoint(it, -0.5 + k / COLS, 0.5 - r * 0.5, open, v);
+          if (v.z > DIST - 0.2) {
+            ok = false;
+            break;
+          }
+          v.project(camera);
+          gx[r * (COLS + 1) + k] = v.x;
+          gy[r * (COLS + 1) + k] = v.y;
         }
-        pts.push([p.x, p.y]);
       }
       if (!ok) continue;
-      let inside = false;
-      for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
-        const [xa, ya] = pts[a];
-        const [xb, yb] = pts[b];
-        if (ya > ny !== yb > ny && nx < ((xb - xa) * (ny - ya)) / (yb - ya) + xa) inside = !inside;
+      for (let r = 0; r < 2; r++) {
+        for (let k = 0; k < COLS; k++) {
+          const a = r * (COLS + 1) + k;
+          const c = a + COLS + 2;
+          // Two triangles per cell: (a, a+1, c) and (a, c, c-1).
+          for (const [b, d] of [
+            [a + 1, c],
+            [c, c - 1],
+          ]) {
+            const x0 = gx[a];
+            const y0 = gy[a];
+            const e1x = gx[b] - x0;
+            const e1y = gy[b] - y0;
+            const e2x = gx[d] - x0;
+            const e2y = gy[d] - y0;
+            const det = e1x * e2y - e2x * e1y;
+            if (Math.abs(det) < 1e-12) continue;
+            const s = ((nx - x0) * e2y - e2x * (ny - y0)) / det;
+            const q = (e1x * (ny - y0) - (nx - x0) * e1y) / det;
+            if (s < 0 || q < 0 || s + q > 1) continue;
+            const grid = (idx: number) => [-0.5 + (idx % (COLS + 1)) / COLS, 0.5 - Math.floor(idx / (COLS + 1)) * 0.5];
+            const [ax, ay] = grid(a);
+            const [bx, by] = grid(b);
+            const [dx, dy] = grid(d);
+            return { i: it.i, x: ax + (bx - ax) * s + (dx - ax) * q, y: ay + (by - ay) * s + (dy - ay) * q };
+          }
+        }
       }
-      if (inside) return item.i;
     }
-    return -1;
+    return null;
   };
 
   /* ---------- Frame ---------- */
@@ -418,24 +525,29 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
   let raf = 0;
   let last = 0;
 
+  const hoverSettled = () =>
+    (history.length === 0 || history[history.length - 1] === hoverAt) &&
+    !kicks.some((k) => k.s > 0) &&
+    items.every(
+      (it) =>
+        Math.abs(it.hover.x - (hoverAt.i === it.i ? 1 : 0)) < 1e-3 &&
+        Math.abs(it.hover.v) < 1e-3 &&
+        Math.abs(it.wig.x) < 1e-4 &&
+        Math.abs(it.wig.v) < 1e-3,
+    );
+
   const settled = () =>
     openDir === 0 &&
     !pointer.down &&
     Math.abs(target - scroll) < 1e-3 &&
     speed < 0.5 &&
-    !fluidLive;
+    !fluidLive &&
+    hoverSettled();
 
-  // The wave keeps the loop going at a reduced rate, except under reduced
-  // motion and while a project is fully open: the sheet then covers all but a
-  // thin margin of the wall, where a few px of drift would not be seen.
-  const waving = () => entered && !reduced && !(openIndex >= 0 && openDir === 0);
-
-  const wantRunning = () => entered && !hidden && (waving() || !settled());
+  const wantRunning = () => entered && !hidden && !settled();
 
   const update = (dt: number) => {
     const now = performance.now();
-    if (waving()) waveT += dt;
-    setWave();
 
     scroll += (target - scroll) * damp(pointer.dragging ? K_DRAG : follow, dt);
     if (Math.abs(target - scroll) < 1e-4) scroll = target;
@@ -459,19 +571,78 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     }
     // Opening runs the curve forward; closing plays the same ease-out from
     // the sheet back to the wall.
-    const openAmount = openDir < 0 ? 1 - easeOut(1 - openT) : easeOut(openT);
+    openAmount = openDir < 0 ? 1 - easeOut(1 - openT) : easeOut(openT);
 
-    // Hover only changes the cursor; the reference card does not react.
-    hoverIndex = pointer.inside && !pointer.dragging && openIndex < 0 ? pick(pointer.x, pointer.y) : -1;
-    canvas.style.cursor = pointer.dragging ? "grabbing" : hoverIndex >= 0 ? "pointer" : "grab";
-
+    // Place the cards; draw far ones first.
     for (const it of items) {
       const u = it.material.uniforms;
       u.uOffset.value = offsetOf(it.i);
       u.uOpen.value = it.i === openIndex ? openAmount : 0;
-      it.mesh.renderOrder = it.i === openIndex ? 10 : 0;
-      // Cards far round the back of the cylinder stay hidden.
-      it.mesh.visible = it.i === openIndex || Math.abs(u.uOffset.value) < shared.uRadius.value * 1.9;
+      const ru = u.uOffset.value / unit + RIB_REST;
+      // Past the ends the ribbon runs off screen; skip the cards there.
+      it.mesh.visible = it.i === openIndex || Math.abs(ru) < 2.6;
+      sampleRibbon(ribData, ru, 0, cen);
+      it.depth = Math.hypot(cen[0] * unit, cen[1] * unit, cen[2] * unit - DIST);
+    }
+    byDepth = [...items].sort((a, b) => a.depth - b.depth);
+    byDepth.forEach((it, rank) => {
+      it.mesh.renderOrder = it.i === openIndex ? 1000 : items.length - rank;
+    });
+
+    // Hover. The cursor reacts at once; the pose follows the delayed sample.
+    const hit = pointer.inside && !pointer.dragging && openIndex < 0 && entered ? pick(pointer.x, pointer.y) : null;
+    hoverIndex = hit ? hit.i : -1;
+    canvas.style.cursor = pointer.dragging ? "grabbing" : hoverIndex >= 0 ? "pointer" : "grab";
+    if (hoverMotion()) {
+      const t = now / 1000;
+      const cur = hit && pointer.mouse ? hit : null;
+      const lastS = history[history.length - 1] ?? hoverAt;
+      if (lastS.i !== (cur?.i ?? -1) || (cur && Math.hypot(lastS.x - cur.x, lastS.y - cur.y) > 0.01)) {
+        history.push({ t, i: cur?.i ?? -1, x: cur?.x ?? lastS.x, y: cur?.y ?? lastS.y });
+      }
+      while (history.length > 1 && history[1].t <= t - HOVER_DELAY) history.shift();
+      if (history.length && history[0].t <= t - HOVER_DELAY) hoverAt = history[0];
+      // Pointer speed over a card, in view heights per second.
+      const moved = cur && dt > 0 && pointer.lastX >= 0 ? Math.hypot(pointer.x - pointer.lastX, pointer.y - pointer.lastY) : 0;
+      const ptrSpeed = dt > 0 ? moved / H / dt : 0;
+      kicks.push({ t, i: cur?.i ?? -1, s: ptrSpeed, x: cur?.x ?? 0, y: cur?.y ?? 0 });
+      while (kicks.length > 1 && kicks[1].t <= t - WIG_DELAY) kicks.shift();
+      const kick0 = kicks[0].t <= t - WIG_DELAY ? kicks[0] : null;
+      for (const it of items) {
+        if (hoverAt.i === it.i) {
+          if (it.hover.x < 0.01 && Math.abs(it.hover.v) < 0.01) {
+            it.spotX = hoverAt.x;
+            it.spotY = hoverAt.y;
+          }
+          spring(it.hover, 1, HOVER_W, HOVER_Z, dt);
+          it.spotX += (hoverAt.x - it.spotX) * damp(HOVER_FOLLOW, dt);
+          it.spotY += (hoverAt.y - it.spotY) * damp(HOVER_FOLLOW, dt);
+        } else {
+          it.hover.x -= it.hover.x * damp(1 / HOVER_RELEASE, dt);
+          it.hover.v = 0;
+          if (it.hover.x < 1e-3) it.hover.x = 0;
+        }
+        const kicked = kick0 && kick0.i === it.i && kick0.s > 0 ? kick0 : null;
+        if (kicked) {
+          it.wigX = kicked.x;
+          it.wigY = kicked.y;
+        }
+        spring(it.wig, 0, WIG_W, WIG_Z, dt, kicked ? WIG_GAIN * kicked.s : 0);
+        it.wig.x = clamp(it.wig.x, -WIG_MAX, WIG_MAX);
+        if (Math.abs(it.wig.x) < 1e-5 && Math.abs(it.wig.v) < 1e-4) it.wig.x = it.wig.v = 0;
+      }
+    } else {
+      // Reduced motion and touch screens keep the neutral pose.
+      history.length = 0;
+      kicks.length = 0;
+      hoverAt = { t: -1e9, i: -1, x: 0, y: 0 };
+      for (const it of items) {
+        it.hover.x = it.hover.v = it.wig.x = it.wig.v = 0;
+      }
+    }
+    for (const it of items) {
+      (it.material.uniforms.uHover.value as Vector4).set(it.hover.x, it.spotX, it.spotY, it.wig.x);
+      (it.material.uniforms.uWigAt.value as Vector2).set(it.wigX, it.wigY);
     }
 
     // Liquid: stir along the pointer path, then let it run down.
@@ -513,11 +684,6 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
 
   const frame = (now: number) => {
     raf = 0;
-    // Only the wave moving: draw every other frame or so (~30 fps).
-    if (now - last < IDLE_FRAME_MS - 2 && settled()) {
-      raf = requestAnimationFrame(frame);
-      return;
-    }
     const dt = Math.min((now - last) / 1000, 1 / 20);
     last = now;
     update(dt);
@@ -556,6 +722,7 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     pointer.x = x;
     pointer.y = y;
     pointer.inside = true;
+    pointer.mouse = e.pointerType !== "touch";
     if (!reduced && fluid) {
       lastStir = performance.now();
       fluidLive = true;
@@ -612,11 +779,12 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     }
     const [x, y] = localXY(e);
     const hit = pick(x, y);
-    if (hit >= 0) opts.onOpen(cards[hit].id);
+    if (hit) opts.onOpen(cards[hit.i].id);
   };
 
   const onPointerLeave = () => {
     pointer.inside = false;
+    kick();
   };
 
   const onWheel = (e: WheelEvent) => {

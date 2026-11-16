@@ -111,13 +111,13 @@ void main() {
     vec2 slope = vec2(hr - hl, ht - hb);
     vec2 flow = texture2D(uFluidVel, s).xy * uFluidTexel;
     // Soft and mostly shading: a little bend, a broad sheen, no sharp glints.
-    uv -= (slope * 0.0035 + flow * 0.001) * uRipple;
+    uv -= (slope * 0.0022 + flow * 0.0006) * uRipple; // gentle: a hint of liquid, not a wobble
     vec3 n = normalize(vec3(-slope * 3.0, 1.0));
     vec3 l = normalize(vec3(-0.45, 0.55, 0.7));
     // Minus the flat-surface value so still liquid adds no light.
     float spec = pow(max(dot(n, l), 0.0), 10.0) - pow(l.z, 10.0);
     float shade = dot(n.xy, vec2(0.35, -0.45));
-    light = vec3(spec * 0.16 + shade * 0.28) * uRipple;
+    light = vec3(spec * 0.1 + shade * 0.18) * uRipple;
   }
 
   vec3 col = texture2D(uMap, uv).rgb;

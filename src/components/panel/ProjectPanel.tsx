@@ -3,7 +3,8 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { CARDS, type Card } from "@/data/site";
 import { sheetRect } from "@/components/sheet";
-import PinnedDevice from "./PinnedDevice";
+import AboutBody from "./AboutBody";
+import DeviceFrame from "./DeviceFrame";
 import styles from "./ProjectPanel.module.css";
 
 const subscribeResize = (l: () => void) => {
@@ -17,7 +18,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export default function ProjectPanel({
   card,
   index,
-  total,
   onClose,
   onPrev,
   onNext,
@@ -35,6 +35,9 @@ export default function ProjectPanel({
   const sheetRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const next = CARDS[(index + 1) % CARDS.length];
+
+  const projects = CARDS.filter((c) => c.kind !== "about");
+  const pIndex = projects.findIndex((c) => c.id === card.id);
 
   // Focus in on open; hand focus back to where it was (if it still exists) on close.
   // Layout effect: read activeElement before the browser's focus fixup blurs the
@@ -63,7 +66,7 @@ export default function ProjectPanel({
     const scroller = scrollRef.current;
     if (!scroller) return;
     scroller.scrollTop = 0;
-    // Stepped from the "Next project" block at the bottom: don't leave focus off-screen.
+    // Stepped from the "Next" block at the bottom: don't leave focus off-screen.
     if (scroller.contains(document.activeElement) && document.activeElement !== scroller) {
       scroller.focus({ preventScroll: true });
     }
@@ -81,9 +84,15 @@ export default function ProjectPanel({
         style={{ left: r.x, top: r.y, width: r.w, height: r.h, borderRadius: r.radius }}
       >
         <header className={styles.bar}>
-          <p className={styles.count} aria-label={`Project ${index + 1} of ${total}`}>
-            {pad(index + 1)} / {pad(total)}
-          </p>
+          {card.kind === "about" ? (
+            <p className={styles.count} aria-label="About me">
+              About
+            </p>
+          ) : (
+            <p className={styles.count} aria-label={`Project ${pIndex + 1} of ${projects.length}`}>
+              {pad(pIndex + 1)} / {pad(projects.length)}
+            </p>
+          )}
           <nav className={styles.actions} aria-label="Project controls">
             <button type="button" onClick={onPrev}>
               Previous
@@ -98,28 +107,67 @@ export default function ProjectPanel({
         </header>
 
         <div ref={scrollRef} className={styles.scroll} tabIndex={-1}>
-          <div className={styles.hero}>
-            <h2 className={styles.name}>{card.name}</h2>
-            <p className={styles.meta}>
-              <span>{card.role}</span>
-              <a href={card.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                {card.linkLabel} <span aria-hidden="true">↗</span>
-              </a>
-            </p>
-          </div>
+          {card.kind === "about" ? (
+            <AboutBody />
+          ) : (
+            <div className={styles.body}>
+              <header className={styles.intro}>
+                <p className={styles.eyebrow}>{card.kind === "site" ? "Client website" : "Open-source app"}</p>
+                <h2 className={styles.name}>{card.name}</h2>
+                <p className={styles.summary}>{card.summary}</p>
+                <div className={styles.ctaRow}>
+                  <a href={card.url} target="_blank" rel="noopener noreferrer" className={styles.primary}>
+                    Visit {card.linkLabel} <span aria-hidden="true">↗</span>
+                  </a>
+                  {card.meta && <span className={styles.metaPill}>{card.meta}</span>}
+                </div>
+              </header>
 
-          {card.cover && (
-            <figure className={styles.cover} data-kind={card.kind}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={card.cover} alt={`${card.name}, ${card.kind === "site" ? "desktop home page" : "screenshot"}`} />
-            </figure>
+              <dl className={styles.facts}>
+                <div className={styles.fact}>
+                  <dt>Role</dt>
+                  <dd>{card.role}</dd>
+                </div>
+                {card.years && (
+                  <div className={styles.fact}>
+                    <dt>Years</dt>
+                    <dd>{card.years}</dd>
+                  </div>
+                )}
+                {card.stack.length > 0 && (
+                  <div className={styles.fact}>
+                    <dt>Stack</dt>
+                    <dd>
+                      <ul className={styles.chips}>
+                        {card.stack.map((tech) => (
+                          <li key={tech}>{tech}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className={styles.showcase}>
+                <DeviceFrame key={card.id} card={card} />
+              </div>
+
+              {card.highlights.length > 0 && (
+                <section className={styles.built}>
+                  <h3>What I did</h3>
+                  <ul>
+                    {card.highlights.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
-
-          <PinnedDevice key={card.id} card={card} scrollRef={scrollRef} />
 
           <div className={styles.after}>
             <button type="button" className={styles.next} onClick={onNext}>
-              <span className={styles.nextLabel}>Next project</span>
+              <span className={styles.nextLabel}>Next</span>
               <span className={styles.nextName}>
                 {next.name} <span aria-hidden="true">→</span>
               </span>

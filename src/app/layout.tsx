@@ -15,14 +15,14 @@ const text = Geist({
 });
 
 const description =
-  "Ghaith Alkawadri is a remote software developer in Egypt: web front-ends, WordPress sites and open-source Linux software in Python and GTK4.";
+  "Ghaith Alkawadri is a remote web developer in Egypt and the founder of OmiTech (tech & AI solutions): Angular and React front-ends, WordPress sites and open-source Linux software.";
 
 export const metadata: Metadata = {
-  title: "Ghaith Alkawadri, software developer",
+  title: "Ghaith Alkawadri, web developer & founder of OmiTech",
   description,
   authors: [{ name: "Ghaith Alkawadri", url: "https://github.com/DevWebeloper" }],
   openGraph: {
-    title: "Ghaith Alkawadri, software developer",
+    title: "Ghaith Alkawadri, web developer & founder of OmiTech",
     description,
     url: "https://devwebeloper.github.io/portfolio/",
     siteName: "Ghaith Alkawadri",

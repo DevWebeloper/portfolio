@@ -1,0 +1,290 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  /* Vertical rhythm separating major About sections */
+  gap: 72px;
+  /* Fluid inner gutter matching the panel specification */
+  padding: clamp(20px, 4vw, 56px);
+  font-family: var(--font-text), system-ui, sans-serif;
+  color: var(--text);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Consistent spacing across intro elements */
+  gap: 20px;
+}
+
+.eyebrow {
+  /* Small uppercase section-style eyebrow */
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.greeting {
+  font-family: var(--font-display), system-ui, sans-serif;
+  /* Heavy display weight for hero greeting */
+  font-weight: 800;
+  /* Fluid display scale across viewport widths */
+  font-size: clamp(40px, 6vw, 84px);
+  /* Tight leading for large display type */
+  line-height: 0.95;
+  /* Slight negative tracking for optical balance at display sizes */
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.lead {
+  /* Fluid lead scale between body and display */
+  font-size: clamp(20px, 2.2vw, 28px);
+  /* Comfortable leading for multi-line lead copy */
+  line-height: 1.35;
+  /* Constrain line length for readability */
+  max-width: 34ch;
+  color: var(--text);
+}
+
+.body {
+  /* Slightly larger body copy for editorial readability */
+  font-size: 17px;
+  /* Open line height for muted paragraph text */
+  line-height: 1.6;
+  color: var(--muted);
+  /* Optimal reading measure for prose */
+  max-width: 62ch;
+}
+
+.company {
+  display: inline-flex;
+  align-items: center;
+  /* Space between status dot and company text */
+  gap: 10px;
+  border: 1px solid var(--line);
+  /* Full pill rounding */
+  border-radius: 999px;
+  /* Compact pill padding */
+  padding: 6px 14px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.company::before {
+  content: "";
+  /* Accent indicator dot size */
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Horizontal and wrapped gap between action buttons */
+  gap: 12px;
+  /* Extra breathing room above CTA row */
+  margin-top: 4px;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Pill button radius */
+  border-radius: 999px;
+  /* Pill button touch-target padding */
+  padding: 12px 20px;
+  /* Hover lift transition matching site easing */
+  transition: transform 160ms var(--ease);
+}
+
+.primaryBtn {
+  background: var(--text);
+  color: var(--bg);
+  /* Bold emphasis on primary action */
+  font-weight: 600;
+}
+
+.secondaryBtn {
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.primaryBtn:hover,
+.secondaryBtn:hover {
+  /* Subtle 1px lift on hover */
+  transform: translateY(-1px);
+}
+
+.meta {
+  /* Subordinate metadata line size */
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionHeading {
+  /* Compact uppercase section heading */
+  font-size: 13px;
+  text-transform: uppercase;
+  /* Wide tracking for uppercase label legibility */
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  /* Separation between heading and section body */
+  margin-bottom: 20px;
+}
+
+.servicesGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Gutter between service cards */
+  gap: 16px;
+}
+
+/* Switch to 3-column layout when panel width allows */
+@media (min-width: 900px) {
+  .servicesGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  /* Rounded card container */
+  border-radius: 16px;
+  /* Internal card padding */
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  /* Spacing between index, title, and description */
+  gap: 10px;
+}
+
+.cardNum {
+  /* Small muted index label */
+  font-size: 12px;
+  color: var(--muted);
+  /* Align numeric indices cleanly */
+  font-variant-numeric: tabular-nums;
+}
+
+.cardTitle {
+  /* Card title emphasis */
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cardText {
+  /* Card body copy size and rhythm */
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.expList {
+  list-style: none;
+}
+
+.expRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Vertical gap when stacked on narrow screens */
+  gap: 6px;
+  /* Vertical breathing room inside each row */
+  padding-block: 18px;
+}
+
+/* Align years in fixed left column on wider screens */
+@media (min-width: 640px) {
+  .expRow {
+    /* Fixed 140px year column beside flexible content */
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 24px;
+    align-items: baseline;
+  }
+}
+
+.expRow + .expRow {
+  border-top: 1px solid var(--line);
+}
+
+.expYears {
+  /* Secondary size for date range */
+  font-size: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.expContent {
+  display: flex;
+  flex-direction: column;
+  /* Tight gap between role title and summary */
+  gap: 4px;
+}
+
+.expRole {
+  /* Bold role and organization line */
+  font-weight: 600;
+  color: var(--text);
+}
+
+.expText {
+  /* Muted summary text below role */
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.skillsGroups {
+  display: flex;
+  flex-direction: column;
+  /* Vertical gap between skill groups */
+  gap: 24px;
+}
+
+.skillGroup {
+  display: flex;
+  flex-direction: column;
+  /* Gap between group label and chip wrap */
+  gap: 12px;
+}
+
+.skillLabel {
+  /* Small uppercase muted group label */
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.skillChips {
+  display: flex;
+  flex-wrap: wrap;
+  /* Space between wrapped skill pills */
+  gap: 8px;
+  list-style: none;
+}
+
+.chip {
+  /* Compact chip text size */
+  font-size: 13px;
+  border: 1px solid var(--line);
+  /* Full pill radius */
+  border-radius: 999px;
+  /* Tight horizontal and vertical chip padding */
+  padding: 4px 10px;
+  color: var(--text);
+}

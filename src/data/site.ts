@@ -2,19 +2,73 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const PERSON = {
   name: "Ghaith Alkawadri",
-  role: "Software developer",
-  headline: "Developer building for the web and the Linux desktop.",
+  role: "Web developer · Founder of OmiTech",
+  headline: "Web developer and founder of OmiTech: tech & AI solutions.",
   base: "Remote, based in Egypt",
   email: "gheith.sy@gmail.com",
   github: "https://github.com/DevWebeloper",
   githubLabel: "github.com/DevWebeloper",
   cv: `${BASE}/Ghaith-Alkawadri-CV.pdf`,
+  company: { name: "OmiTech", tagline: "Tech & AI solutions", role: "Founder" },
+  languages: "Arabic (native) · English (fluent)",
+};
+
+/** The About card's panel. Content from CV_Ghaith_Alkawadri.md (the accurate CV). */
+export const ABOUT = {
+  greeting: "Hi, I'm Ghaith.",
+  lead:
+    "I'm a web developer with 8+ years of remote work for clients in the US, Switzerland and France, and the founder of OmiTech, where I build tech and AI solutions.",
+  body:
+    "On the web I build Angular and React front-ends and WordPress sites with PHP, JavaScript and CSS. I also write open-source Linux desktop software in Python and GTK4.",
+  services: [
+    {
+      title: "Front-end apps",
+      text: "Angular and React / Next.js interfaces in TypeScript, wired to REST APIs.",
+    },
+    {
+      title: "WordPress & PHP sites",
+      text: "Custom themes and features in large existing codebases, built to stay up under traffic spikes.",
+    },
+    {
+      title: "Tech & AI solutions",
+      text: "Through OmiTech, the company I founded.",
+    },
+  ],
+  experience: [
+    { years: "2026 – now", title: "Founder", org: "OmiTech", text: "Tech & AI solutions." },
+    {
+      years: "2019 – now",
+      title: "Freelance web developer",
+      org: "Remote",
+      text: "WordPress sites for clients including JAR Capital (Geneva), CRCDC Pays de la Loire and Cider (Paris).",
+    },
+    {
+      years: "2018 – 2025",
+      title: "Web developer",
+      org: "XonBoard",
+      text: "hrf.org and the Oslo Freedom Forum in WordPress/PHP; the Angular front-end of GT-AI.",
+    },
+    {
+      years: "2016 – 2018",
+      title: "Android ROM developer",
+      org: "NovaOS (XDA)",
+      text: "Firmware ports with 200k+ downloads across 12 devices; ran a 15k-member community.",
+    },
+  ],
+  skills: [
+    {
+      group: "Web",
+      items: ["TypeScript", "JavaScript", "Angular", "React", "Next.js", "PHP", "WordPress", "HTML", "CSS / Sass", "Tailwind CSS", "MySQL", "REST APIs"],
+    },
+    { group: "Linux & desktop", items: ["Python", "GTK4 / libadwaita", "Bash", "systemd", "Git"] },
+  ],
 };
 
 export interface Card {
-  /** Hash slug: hrf, gtai, crcdc, cider, aura-glass */
+  /** Hash slug: about, hrf, gtai, crcdc, cider, aura-glass */
   id: string;
-  kind: "site" | "app";
+  /** "about" is the first card; its panel shows ABOUT instead of a project. */
+  kind: "about" | "site" | "app";
   name: string;
   /** Label drawn on the card, e.g. "HRF" */
   short: string;
@@ -32,9 +86,26 @@ export interface Card {
   device: string[];
   /** e.g. "★ 120+ · ~2k downloads" */
   meta?: string;
+  /** What I did, 2–4 short lines (from the CV). */
+  highlights: string[];
 }
 
 export const CARDS: Card[] = [
+  {
+    id: "about",
+    kind: "about",
+    name: "About me",
+    short: "About me",
+    // The cover already says "Web developer · Founder of OmiTech"; the caption says what's inside.
+    role: "Who I am and what I do",
+    summary: ABOUT.lead,
+    stack: [],
+    url: PERSON.github,
+    linkLabel: "GitHub",
+    cover: `${BASE}/work/thumbs/about.webp`,
+    device: [],
+    highlights: [],
+  },
   {
     id: "hrf",
     kind: "site",
@@ -46,8 +117,11 @@ export const CARDS: Card[] = [
     stack: ["WordPress", "PHP", "JavaScript", "CSS"],
     url: "https://hrf.org",
     linkLabel: "hrf.org",
-    cover: `${BASE}/work/hrf.webp`,
+    cover: `${BASE}/work/thumbs/hrf.webp`,
     device: [`${BASE}/work/mobile/hrf.webp`],
+    highlights: ["Theme templates and custom features in a large existing WordPress/PHP codebase.",
+      "Built the Oslo Freedom Forum's event pages: speaker listings, schedule filtering and livestream embeds.",
+      "Kept both sites stable during traffic spikes."],
   },
   {
     id: "gtai",
@@ -59,8 +133,10 @@ export const CARDS: Card[] = [
     stack: ["Angular", "TypeScript", "REST APIs"],
     url: "https://gt-ai.io",
     linkLabel: "gt-ai.io",
-    cover: `${BASE}/work/gtai.webp`,
+    cover: `${BASE}/work/thumbs/gtai.webp`,
     device: [`${BASE}/work/mobile/gtai.webp`],
+    highlights: ["Built the Angular front-end on top of the ElevenLabs API.",
+      "Voice preview, playback and voice settings screens."],
   },
   {
     id: "crcdc",
@@ -73,8 +149,10 @@ export const CARDS: Card[] = [
     stack: ["WordPress", "PHP", "JavaScript", "CSS"],
     url: "https://depistagecancers.fr",
     linkLabel: "depistagecancers.fr",
-    cover: `${BASE}/work/crcdc.webp`,
+    cover: `${BASE}/work/thumbs/crcdc.webp`,
     device: [`${BASE}/work/mobile/crcdc.webp`],
+    highlights: ["Built and customised the site with theme code and a visual editor.",
+      "Separate paths for the public and for health professionals."],
   },
   {
     id: "cider",
@@ -86,8 +164,10 @@ export const CARDS: Card[] = [
     stack: ["WordPress", "PHP", "CSS"],
     url: "https://www.cider.fr",
     linkLabel: "cider.fr",
-    cover: `${BASE}/work/cider.webp`,
+    cover: `${BASE}/work/thumbs/cider.webp`,
     device: [`${BASE}/work/mobile/cider.webp`],
+    highlights: ["Built and customised the site with theme code and a visual editor.",
+      "Image-heavy project and product pages."],
   },
   {
     id: "aura-glass",
@@ -100,8 +180,11 @@ export const CARDS: Card[] = [
     stack: ["GTK4", "libadwaita", "CSS", "Bash"],
     url: "https://github.com/DevWebeloper/aura-glass",
     linkLabel: "GitHub",
-    cover: `${BASE}/work/apps/aura-glass-1.webp`,
+    cover: `${BASE}/work/thumbs/aura-glass.webp`,
     device: [1, 2, 3].map((n) => `${BASE}/work/apps/aura-glass-${n}.webp`),
     meta: "★ 120+ · ~2k downloads",
+    highlights: ["Interactive installer and a GTK4 / libadwaita settings app.",
+      "Adaptive mode turns blur off on battery or under heavy GPU load.",
+      "Supports GNOME Shell 48–51; 120+ stars and 240+ commits."],
   },
 ];

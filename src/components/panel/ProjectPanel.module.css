@@ -96,8 +96,7 @@
     grid-column: 2;
     align-self: end;
   }
-  .showcase,
-  .built {
+  .showcase {
     grid-column: 1 / -1;
   }
 }
@@ -202,42 +201,6 @@
   border-radius: 999px;
   padding: 4px 10px;
   line-height: 1.3;
-}
-
-.built h3 {
-  margin: 0 0 16px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.built ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 70ch;
-  font-size: 17px;
-  line-height: 1.55;
-}
-
-.built li {
-  position: relative;
-  padding-left: 18px;
-}
-
-.built li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  /* 0.62em aligns the 6px square to the middle of the first line of 17px/1.55 text. */
-  top: 0.62em;
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
 }
 
 .after {

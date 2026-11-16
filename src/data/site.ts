@@ -86,7 +86,6 @@ export interface Card {
   /** e.g. "★ 120+ · ~2k downloads" */
   meta?: string;
   /** What I did, 2–4 short lines (from the CV). */
-  highlights: string[];
 }
 
 export const CARDS: Card[] = [
@@ -103,7 +102,6 @@ export const CARDS: Card[] = [
     linkLabel: "GitHub",
     cover: `${BASE}/work/thumbs/about.webp`,
     device: [],
-    highlights: [],
   },
   {
     id: "hrf",
@@ -118,9 +116,6 @@ export const CARDS: Card[] = [
     linkLabel: "hrf.org",
     cover: `${BASE}/work/thumbs/hrf.webp`,
     device: [`${BASE}/work/mobile/hrf.webp`],
-    highlights: ["Theme templates and custom features in a large existing WordPress/PHP codebase.",
-      "Built the Oslo Freedom Forum's event pages: speaker listings, schedule filtering and livestream embeds.",
-      "Kept both sites stable during traffic spikes."],
   },
   {
     id: "gtai",
@@ -134,8 +129,6 @@ export const CARDS: Card[] = [
     linkLabel: "gt-ai.io",
     cover: `${BASE}/work/thumbs/gtai.webp`,
     device: [`${BASE}/work/mobile/gtai.webp`],
-    highlights: ["Built the Angular front-end on top of the ElevenLabs API.",
-      "Voice preview, playback and voice settings screens."],
   },
   {
     id: "crcdc",
@@ -150,8 +143,6 @@ export const CARDS: Card[] = [
     linkLabel: "depistagecancers.fr",
     cover: `${BASE}/work/thumbs/crcdc.webp`,
     device: [`${BASE}/work/mobile/crcdc.webp`],
-    highlights: ["Built and customised the site with theme code and a visual editor.",
-      "Separate paths for the public and for health professionals."],
   },
   {
     id: "cider",
@@ -165,8 +156,6 @@ export const CARDS: Card[] = [
     linkLabel: "cider.fr",
     cover: `${BASE}/work/thumbs/cider.webp`,
     device: [`${BASE}/work/mobile/cider.webp`],
-    highlights: ["Built and customised the site with theme code and a visual editor.",
-      "Image-heavy project and product pages."],
   },
   {
     id: "aura-glass",
@@ -182,8 +171,5 @@ export const CARDS: Card[] = [
     cover: `${BASE}/work/thumbs/aura-glass.webp`,
     device: [1, 2, 3].map((n) => `${BASE}/work/apps/aura-glass-${n}.webp`),
     meta: "★ 120+ · ~2k downloads",
-    highlights: ["Interactive installer and a GTK4 / libadwaita settings app.",
-      "Adaptive mode turns blur off on battery or under heavy GPU load.",
-      "Supports GNOME Shell 48–51; 120+ stars and 240+ commits."],
   },
 ];

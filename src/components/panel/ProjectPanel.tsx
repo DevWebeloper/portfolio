@@ -156,17 +156,6 @@ export default function ProjectPanel({
                 <div className={styles.showcase}>
                   <DeviceFrame key={card.id} card={card} />
                 </div>
-  
-                {card.highlights.length > 0 && (
-                  <section className={styles.built}>
-                    <h3>What I did</h3>
-                    <ul>
-                      {card.highlights.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
               </div>
             )}
   

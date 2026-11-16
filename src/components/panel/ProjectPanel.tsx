@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CARDS, type Card } from "@/data/site";
 import { sheetRect } from "@/components/sheet";
 import AboutBody from "./AboutBody";
@@ -35,6 +35,8 @@ export default function ProjectPanel({
   const sheetRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const next = CARDS[(index + 1) % CARDS.length];
+  // The card the panel opened on; after Previous / Next the content enters at once.
+  const [firstId] = useState(card.id);
 
   const projects = CARDS.filter((c) => c.kind !== "about");
   const pIndex = projects.findIndex((c) => c.id === card.id);
@@ -81,6 +83,7 @@ export default function ProjectPanel({
         aria-modal="true"
         aria-label={card.name}
         className={styles.sheet}
+        data-stepped={card.id !== firstId || undefined}
         style={{ left: r.x, top: r.y, width: r.w, height: r.h, borderRadius: r.radius }}
       >
         <header className={styles.bar}>
@@ -107,74 +110,77 @@ export default function ProjectPanel({
         </header>
 
         <div ref={scrollRef} className={styles.scroll} tabIndex={-1}>
-          {card.kind === "about" ? (
-            <AboutBody />
-          ) : (
-            <div className={styles.body}>
-              <header className={styles.intro}>
-                <p className={styles.eyebrow}>{card.kind === "site" ? "Client website" : "Open-source app"}</p>
-                <h2 className={styles.name}>{card.name}</h2>
-                <p className={styles.summary}>{card.summary}</p>
-                <div className={styles.ctaRow}>
-                  <a href={card.url} target="_blank" rel="noopener noreferrer" className={styles.primary}>
-                    Visit {card.linkLabel} <span aria-hidden="true">↗</span>
-                  </a>
-                  {card.meta && <span className={styles.metaPill}>{card.meta}</span>}
-                </div>
-              </header>
-
-              <dl className={styles.facts}>
-                <div className={styles.fact}>
-                  <dt>Role</dt>
-                  <dd>{card.role}</dd>
-                </div>
-                {card.years && (
-                  <div className={styles.fact}>
-                    <dt>Years</dt>
-                    <dd>{card.years}</dd>
+          {/* Keyed so Previous / Next replays the content entrance. */}
+          <div key={card.id} className={styles.content}>
+            {card.kind === "about" ? (
+              <AboutBody />
+            ) : (
+              <div className={styles.body}>
+                <header className={styles.intro}>
+                  <p className={styles.eyebrow}>{card.kind === "site" ? "Client website" : "Open-source app"}</p>
+                  <h2 className={styles.name}>{card.name}</h2>
+                  <p className={styles.summary}>{card.summary}</p>
+                  <div className={styles.ctaRow}>
+                    <a href={card.url} target="_blank" rel="noopener noreferrer" className={styles.primary}>
+                      Visit {card.linkLabel} <span aria-hidden="true">↗</span>
+                    </a>
+                    {card.meta && <span className={styles.metaPill}>{card.meta}</span>}
                   </div>
-                )}
-                {card.stack.length > 0 && (
+                </header>
+  
+                <dl className={styles.facts}>
                   <div className={styles.fact}>
-                    <dt>Stack</dt>
-                    <dd>
-                      <ul className={styles.chips}>
-                        {card.stack.map((tech) => (
-                          <li key={tech}>{tech}</li>
-                        ))}
-                      </ul>
-                    </dd>
+                    <dt>Role</dt>
+                    <dd>{card.role}</dd>
                   </div>
+                  {card.years && (
+                    <div className={styles.fact}>
+                      <dt>Years</dt>
+                      <dd>{card.years}</dd>
+                    </div>
+                  )}
+                  {card.stack.length > 0 && (
+                    <div className={styles.fact}>
+                      <dt>Stack</dt>
+                      <dd>
+                        <ul className={styles.chips}>
+                          {card.stack.map((tech) => (
+                            <li key={tech}>{tech}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+  
+                <div className={styles.showcase}>
+                  <DeviceFrame key={card.id} card={card} />
+                </div>
+  
+                {card.highlights.length > 0 && (
+                  <section className={styles.built}>
+                    <h3>What I did</h3>
+                    <ul>
+                      {card.highlights.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
                 )}
-              </dl>
-
-              <div className={styles.showcase}>
-                <DeviceFrame key={card.id} card={card} />
               </div>
-
-              {card.highlights.length > 0 && (
-                <section className={styles.built}>
-                  <h3>What I did</h3>
-                  <ul>
-                    {card.highlights.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+            )}
+  
+            <div className={styles.after}>
+              <button type="button" className={styles.next} onClick={onNext}>
+                <span className={styles.nextLabel}>Next</span>
+                <span className={styles.nextName}>
+                  {next.name} <span aria-hidden="true">→</span>
+                </span>
+              </button>
+              <button type="button" className={styles.close} onClick={onClose}>
+                Close
+              </button>
             </div>
-          )}
-
-          <div className={styles.after}>
-            <button type="button" className={styles.next} onClick={onNext}>
-              <span className={styles.nextLabel}>Next</span>
-              <span className={styles.nextName}>
-                {next.name} <span aria-hidden="true">→</span>
-              </span>
-            </button>
-            <button type="button" className={styles.close} onClick={onClose}>
-              Close
-            </button>
           </div>
         </div>
       </section>

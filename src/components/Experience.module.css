@@ -38,11 +38,19 @@
   position: fixed;
   inset: 0;
   z-index: 30;
+}
+/* Direct loads, reduced motion and the phone row: a plain fade. The "grow"
+   choreography lives in ProjectPanel.module.css. */
+.panelLayer[data-anim="fade"] {
   animation: panel-in 0.35s ease both;
 }
-/* The canvas grows the card first; the sheet lands on top of it. */
-.panelLayer[data-anim="grow"] {
-  animation-delay: 0.3s;
+.panelLayer[data-anim="fade"][data-closing] {
+  animation: panel-out 0.2s ease both;
+}
+@keyframes panel-out {
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes panel-in {

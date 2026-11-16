@@ -12,6 +12,7 @@ import styles from "./Experience.module.css";
 // The hash the page was loaded with (client only); null on the server and while hydrating.
 const LOAD_HASH = typeof window === "undefined" ? "" : window.location.hash;
 const noSubscribe = () => () => {};
+const CLOSE_OUT_MS = 260; // matches the panel's exit animation in Experience.module.css
 
 export default function Experience() {
   const hash = useHash();
@@ -39,6 +40,23 @@ export default function Experience() {
   const onFail = useCallback(() => setGlFailed(true), []);
   const openCard = useCallback((id: string) => pushHash(id), []);
 
+  // Closing plays in two beats: the sheet's content leaves (CLOSE_OUT_MS), then
+  // the engine shrinks the blank card back onto the wall. Until then the panel
+  // stays mounted with the last card and the engine still sees it as open.
+  const [lastOpen, setLastOpen] = useState(open);
+  const [closing, setClosing] = useState<typeof open>(null);
+  if (open !== lastOpen) {
+    setClosing(!open && lastOpen && mode === "gl" && !reduced ? lastOpen : null);
+    setLastOpen(open);
+  }
+  useEffect(() => {
+    if (!closing) return;
+    const t = setTimeout(() => setClosing(null), CLOSE_OUT_MS);
+    return () => clearTimeout(t);
+  }, [closing]);
+  const shown = open ?? closing;
+  const shownIndex = shown ? CARDS.indexOf(shown) : -1;
+
   useEffect(() => {
     if (CARDS.some((c) => `#${c.id}` === window.location.hash)) anchorDirectHash();
   }, []);
@@ -62,7 +80,7 @@ export default function Experience() {
         <CarouselCanvas
           cards={CARDS}
           entered={entered}
-          openId={open?.id ?? null}
+          openId={shown?.id ?? null}
           reducedMotion={reduced}
           onOpen={openCard}
           onFail={onFail}
@@ -91,15 +109,17 @@ export default function Experience() {
         <Chrome visible={entered} />
       </div>
 
-      {open && (
+      {shown && (
         <div
           className={styles.panelLayer}
           data-anim={mode === "gl" && !reduced && !direct ? "grow" : "fade"}
           data-mode={mode}
+          data-closing={!open || undefined}
+          inert={!open}
         >
           <ProjectPanel
-            card={open}
-            index={openIndex}
+            card={shown}
+            index={shownIndex}
             total={CARDS.length}
             onClose={clearHash}
             onPrev={() => step(-1)}

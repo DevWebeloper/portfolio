@@ -124,6 +124,10 @@ void main() {
   col += light;
   // Turned-away parts catch a soft grey sheen, as on the reference.
   col = mix(col, vec3(0.62, 0.62, 0.64), vEdge * 0.35);
+  // While a card grows into the project sheet its cover melts into the sheet's
+  // own colour (--surface, #151516), so the DOM sheet lands on a matching blank
+  // card instead of cross-fading over the cover. Closing plays it backwards.
+  col = mix(col, vec3(0.0824, 0.0824, 0.0863), smoothstep(0.45, 0.92, uOpen));
   gl_FragColor = vec4(col, mask);
 }
 `;

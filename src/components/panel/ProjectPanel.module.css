@@ -4,11 +4,15 @@
   z-index: 30;
 }
 
-/* Click-catcher only: neighbours stay at full brightness around the sheet. */
+/* Veil over the wall while a project is open: the other cards dim and blur,
+   and the liquid keeps moving underneath. */
 .backdrop {
   position: absolute;
   inset: 0;
   cursor: default;
+  background: rgb(11 11 12 / 0.5);
+  backdrop-filter: blur(14px) saturate(0.8);
+  -webkit-backdrop-filter: blur(14px) saturate(0.8);
 }
 
 .sheet {
@@ -275,4 +279,67 @@
 
 .close {
   margin-top: 24px;
+}
+
+/* ---------- Open / close choreography ----------
+   grow:  the canvas card travels and grows (OPEN_MS 620 in engine.ts) while
+          its cover melts into --surface. The sheet fades in on top of that
+          blank card at ~0.4s, the veil blurs the wall, then content rises.
+   close: content and veil leave (CLOSE_OUT_MS 260 in Experience.tsx), then
+          the engine shrinks the blank card back and its cover returns. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+@keyframes sink {
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.content {
+  animation: rise 0.45s var(--ease-out) both;
+}
+:global([data-anim="grow"]) .backdrop {
+  animation: fade-in 0.5s ease 0.36s both;
+}
+:global([data-anim="grow"]) .sheet {
+  animation: fade-in 0.22s ease 0.4s both;
+}
+:global([data-anim="grow"]) .bar {
+  animation: fade-in 0.3s ease 0.5s both;
+}
+/* First open only waits for the card; Previous / Next replays at once. */
+:global([data-anim="grow"]) .sheet:not([data-stepped]) .content {
+  animation-delay: 0.52s;
+}
+
+:global([data-anim="grow"][data-closing]) .content,
+:global([data-anim="grow"][data-closing]) .bar {
+  animation: sink 0.16s ease both;
+}
+:global([data-anim="grow"][data-closing]) .backdrop {
+  animation: fade-out 0.26s ease both;
+}
+:global([data-anim="grow"][data-closing]) .sheet {
+  animation: fade-out 0.1s ease 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
 }

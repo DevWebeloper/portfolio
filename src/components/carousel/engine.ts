@@ -74,8 +74,8 @@ const DRAG_GAIN = 1.05; // wall px per finger px at the centre
 const WHEEL_GAIN = 0.0016; // world units per wheel px, times the view height
 const BLUR_PER_SPEED = 0.022; // smear length in px per (px/s) of wall speed
 const BLUR_MAX = 160; // px
-const OPEN_MS = 500;
-const CLOSE_MS = 600;
+const OPEN_MS = 620; // long enough to read as one move: travel + grow
+const CLOSE_MS = 520;
 const FLUID_LIFE = 4500; // ms after the last stir before the liquid stops
 // Ambient drift: while the pointer rests, two invisible stirrers glide along slow
 // Lissajous loops so the liquid never goes fully still.
@@ -104,7 +104,6 @@ const WIG_GAIN = 4.5; // rad/s^2 per (view heights per s) of pointer speed
 const WIG_MAX = 0.08; // rad
 const WIG_REACH = 0.35; // view heights: only the part of the card near the pass turns
 
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 /** Damped spring step (semi-implicit, sub-stepped so it holds at any frame rate). */
 const spring = (s: { x: number; v: number }, target: number, w: number, z: number, dt: number, force = 0) => {
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
@@ -115,6 +114,8 @@ const spring = (s: { x: number; v: number }, target: number, w: number, z: numbe
   }
 };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+// Cubic in-out: the card lifts off the wall, moves fast mid-way and settles softly.
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const damp = (k: number, dt: number) => 1 - Math.exp(-k * dt);
 /** Least-squares slope of [ms, px] samples, in px/s. */
 const slope = (pts: Array<[number, number]>) => {
@@ -408,7 +409,8 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     { x: -1, y: -1 },
     { x: -1, y: -1 },
   ];
-  const ambientWanted = () => !!fluid && !reduced && openIndex < 0;
+  // Keeps drifting behind an open project too: the dimmed, blurred wall stays alive.
+  const ambientWanted = () => !!fluid && !reduced;
 
   // Hover follows the pointer late, like the reference: pointer samples go
   // into a short history and the pose follows the one from HOVER_DELAY ago.
@@ -566,7 +568,8 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     prevScroll = scroll;
     if (dt > 0) speed += (Math.abs(vel) - speed) * damp(12, dt);
     if (speed < 0.5 && Math.abs(target - scroll) < 1e-3) speed = 0;
-    const blurPx = reduced ? 0 : Math.min(BLUR_MAX, speed * BLUR_PER_SPEED);
+    // No smear while a card travels into the sheet or back: it would ghost the cover.
+    const blurPx = reduced || openIndex >= 0 ? 0 : Math.min(BLUR_MAX, speed * BLUR_PER_SPEED);
     postMat.uniforms.uBlur.value = blurPx < 0.75 ? 0 : (blurPx / W) * Math.sign(vel || 1);
 
     // Open / close progress.
@@ -582,7 +585,7 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     }
     // Opening runs the curve forward; closing plays the same ease-out from
     // the sheet back to the wall.
-    openAmount = openDir < 0 ? 1 - easeOut(1 - openT) : easeOut(openT);
+    openAmount = openDir < 0 ? 1 - easeInOut(1 - openT) : easeInOut(openT);
 
     // Place the cards; draw far ones first.
     for (const it of items) {

@@ -77,6 +77,11 @@ const BLUR_MAX = 160; // px
 const OPEN_MS = 500;
 const CLOSE_MS = 600;
 const FLUID_LIFE = 4500; // ms after the last stir before the liquid stops
+// Ambient drift: while the pointer rests, two invisible stirrers glide along slow
+// Lissajous loops so the liquid never goes fully still.
+const AMBIENT_DELAY = 900; // ms of no pointer stir before the drift fades back in
+const AMBIENT_RAMP = 1600; // ms for that fade
+const AMBIENT_GAIN = 2.2; // stirrer speed boost: the paths move ~100 px/s, too faint unscaled
 // Hover, measured on the reference: about 0.8 s after the pointer comes onto a
 // card, the card gives a little under it (a soft dent) and turns slightly
 // counter-clockwise about the view axis, overshooting once before it settles;
@@ -399,6 +404,11 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
   let hoverIndex = -1;
   let lastStir = -1e9;
   let fluidLive = false;
+  const ambient = [
+    { x: -1, y: -1 },
+    { x: -1, y: -1 },
+  ];
+  const ambientWanted = () => !!fluid && !reduced && openIndex < 0;
 
   // Hover follows the pointer late, like the reference: pointer samples go
   // into a short history and the pose follows the one from HOVER_DELAY ago.
@@ -542,6 +552,7 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
     Math.abs(target - scroll) < 1e-3 &&
     speed < 0.5 &&
     !fluidLive &&
+    !ambientWanted() &&
     hoverSettled();
 
   const wantRunning = () => entered && !hidden && !settled();
@@ -659,7 +670,23 @@ export function createEngine(host: HTMLElement, opts: Options): Engine | null {
         }
         lastStir = now;
       }
-      const live = now - lastStir < FLUID_LIFE;
+      if (ambientWanted() && dt > 0) {
+        const amb = clamp((now - lastStir - AMBIENT_DELAY) / AMBIENT_RAMP, 0, 1);
+        const t = now / 1000;
+        for (let k = 0; k < ambient.length; k++) {
+          const a = ambient[k];
+          const ph = k * Math.PI; // second stirrer runs the mirrored loop
+          const x = W * (0.5 + 0.36 * Math.sin(t * 0.21 + ph));
+          const y = H * (0.5 + 0.26 * Math.sin(t * 0.33 + 1.3 + ph));
+          if (a.x >= 0 && amb > 0) {
+            const g = (amb * AMBIENT_GAIN) / dt;
+            fluid.splat(x, y, (x - a.x) * g, (y - a.y) * g, W, H);
+          }
+          a.x = x;
+          a.y = y;
+        }
+      }
+      const live = ambientWanted() || now - lastStir < FLUID_LIFE;
       if (live) fluid.step(Math.min(dt, 1 / 30));
       else if (fluidLive) fluid.clear();
       fluidLive = live;

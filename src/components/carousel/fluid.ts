@@ -150,7 +150,7 @@ const VEL_DECAY = 0.35; // 1/s
 const INK_DECAY = 0.4; // 1/s, sets how long the liquid stays visible
 const CURL = 8;
 const PRESSURE_ITER = 14;
-const RADIUS = 0.009; // gaussian splat radius, squared screen-height units
+const RADIUS = 0.0033; // gaussian splat radius, squared screen-height units (~0.06 of the view height; 0.009 felt too broad)
 
 type Pair = { read: WebGLRenderTarget; write: WebGLRenderTarget; swap(): void };
 
